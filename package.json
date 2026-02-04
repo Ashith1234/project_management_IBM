@@ -1,0 +1,25 @@
+{
+    "name": "project-management-app",
+    "version": "1.0.0",
+    "description": "MERN Project Management App",
+    "main": "server/server.js",
+    "scripts": {
+        "start": "concurrently \"npm run server\" \"npm run client\"",
+        "dev": "concurrently -n \"SERVER,CLIENT\" -c \"bgBlue.bold,bgMagenta.bold\" \"npm run server\" \"npm run client\"",
+        "server": "cd server && npm run dev",
+        "client": "cd client && npm run dev",
+        "seed": "cd server && npm run seed",
+        "install-all": "npm install && cd server && npm install && cd client && npm install"
+    },
+    "keywords": [
+        "mern",
+        "project-management"
+    ],
+    "author": "",
+    "license": "ISC",
+    "dependencies": {
+        "@hookform/resolvers": "^5.2.2",
+        "concurrently": "^8.2.2",
+        "express-async-handler": "^1.2.0"
+    }
+}

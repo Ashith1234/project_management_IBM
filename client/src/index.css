@@ -1,0 +1,21 @@
+@import "tailwindcss";
+
+@theme {
+  --color-primary: #4f46e5; /* indigo-600 */
+  --color-secondary: #475569; /* slate-600 */
+  --color-success: #10b981; /* emerald-500 */
+  --color-warning: #f59e0b; /* amber-500 */
+  --color-danger: #f43f5e; /* rose-500 */
+  
+  --font-sans: "Inter", system-ui, sans-serif;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900;
+  }
+}
