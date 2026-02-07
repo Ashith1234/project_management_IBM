@@ -19,8 +19,10 @@ const schema = z.object({
     path: ["confirmPassword"],
 });
 
+import { GoogleLogin } from '@react-oauth/google';
+
 const Register = () => {
-    const { register: registerUser } = useAuth();
+    const { register: registerUser, googleLogin } = useAuth();
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -134,10 +136,34 @@ const Register = () => {
                 </Link>
             </div>
 
-            <div className="mt-8 pt-8 border-t border-slate-100 flex items-center justify-center gap-4 grayscale opacity-50">
-                <div className="h-6 w-20 bg-slate-200 rounded animate-pulse"></div>
-                <div className="h-6 w-20 bg-slate-200 rounded animate-pulse"></div>
-                <div className="h-6 w-20 bg-slate-200 rounded animate-pulse"></div>
+            <div className="relative my-8">
+                <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-200"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-slate-500">Or continue with</span>
+                </div>
+            </div>
+
+            <div className="flex justify-center mb-8">
+                <GoogleLogin
+                    onSuccess={async (credentialResponse) => {
+                        try {
+                            const result = await googleLogin(credentialResponse.credential);
+                            if (result.success) {
+                                navigate('/dashboard');
+                            } else {
+                                setError(result.error || 'Google sign-in failed. Please try again.');
+                            }
+                        } catch (err) {
+                            setError('Google sign-in failed. Please try again.');
+                        }
+                    }}
+                    onError={() => setError('Google sign-in was unsuccessful')}
+                    useOneTap
+                    theme="outline"
+                    width="100%"
+                />
             </div>
         </div>
     );

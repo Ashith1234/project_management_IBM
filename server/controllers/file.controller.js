@@ -1,6 +1,30 @@
 const asyncHandler = require('express-async-handler');
 const File = require('../models/File');
 const Project = require('../models/Project');
+const multer = require('multer');
+const path = require('path');
+const fs = require('fs');
+
+// Configure Multer
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+        const dir = 'uploads/';
+        if (!fs.existsSync(dir)) {
+            fs.mkdirSync(dir);
+        }
+        cb(null, dir);
+    },
+    filename: function (req, file, cb) {
+        cb(null, `${Date.now()}-${file.originalname}`);
+    }
+});
+
+const upload = multer({
+    storage: storage,
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+}).single('file');
+
+exports.uploadMiddleware = upload;
 
 // @desc    Get all files for a project
 // @route   GET /api/files?projectId=...
@@ -30,18 +54,32 @@ exports.getFiles = asyncHandler(async (req, res) => {
 // @route   POST /api/files
 // @access  Private
 exports.uploadFile = asyncHandler(async (req, res) => {
-    req.body.uploadedBy = req.user.id;
+    if (!req.file) {
+        res.status(400);
+        throw new Error('Please upload a file');
+    }
 
-    // In a real app, you'd handle the file upload buffer here.
-    // For this implementation, we expect name, url, project, size, type in body.
+    const { project: projectId } = req.body;
 
-    const project = await Project.findById(req.body.project);
+    if (!projectId) {
+        res.status(400);
+        throw new Error('Please provide a projectId');
+    }
+
+    const project = await Project.findById(projectId);
     if (!project) {
         res.status(404);
         throw new Error('Project not found');
     }
 
-    const file = await File.create(req.body);
+    const file = await File.create({
+        name: req.file.originalname,
+        url: `/uploads/${req.file.filename}`,
+        project: projectId,
+        uploadedBy: req.user.id,
+        size: req.file.size,
+        type: req.file.mimetype
+    });
 
     res.status(201).json({
         success: true,
@@ -64,6 +102,12 @@ exports.deleteFile = asyncHandler(async (req, res) => {
     if (file.uploadedBy.toString() !== req.user.id && !['admin', 'project_manager'].includes(req.user.role)) {
         res.status(403);
         throw new Error('Not authorized to delete this file');
+    }
+
+    // Delete physical file
+    const filePath = path.join(__dirname, '..', file.url);
+    if (fs.existsSync(filePath)) {
+        fs.unlinkSync(filePath);
     }
 
     await file.deleteOne();

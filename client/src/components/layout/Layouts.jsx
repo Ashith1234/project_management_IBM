@@ -9,7 +9,8 @@ import {
     Clock,
     LogOut,
     Menu,
-    Bell
+    Bell,
+    BarChart2
 } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
@@ -48,6 +49,7 @@ export const DashboardLayout = () => {
         { label: 'Projects', path: '/projects', icon: Briefcase },
         { label: 'Tasks', path: '/tasks', icon: CheckSquare },
         { label: 'Timesheets', path: '/timesheets', icon: Clock },
+        { label: 'Analytics', path: '/analytics', icon: BarChart2 },
     ];
 
     return (

@@ -13,6 +13,7 @@ import Tasks from './pages/tasks/Tasks';
 import CreateTask from './pages/tasks/CreateTask';
 import TaskDetail from './pages/tasks/TaskDetail';
 import Timesheets from './pages/timesheets/Timesheets';
+import Analytics from './pages/analytics/Analytics';
 
 function App() {
     return (
@@ -36,6 +37,7 @@ function App() {
                         <Route path="/tasks/create/:projectId" element={<CreateTask />} />
                         <Route path="/tasks/:id" element={<TaskDetail />} />
                         <Route path="/timesheets" element={<Timesheets />} />
+                        <Route path="/analytics" element={<Analytics />} />
                     </Route>
                 </Routes>
             </AuthProvider>

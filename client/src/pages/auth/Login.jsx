@@ -14,8 +14,10 @@ const schema = z.object({
     password: z.string().min(6, 'Password must be at least 6 characters'),
 });
 
+import { GoogleLogin } from '@react-oauth/google';
+
 const Login = () => {
-    const { login } = useAuth();
+    const { login, googleLogin } = useAuth();
     const navigate = useNavigate();
     const [isLoading, setIsLoading] = useState(false);
     const [error, setError] = useState('');
@@ -38,6 +40,19 @@ const Login = () => {
             setError('An error occurred. Please try again later.');
         } finally {
             setIsLoading(false);
+        }
+    };
+
+    const handleGoogleSuccess = async (credentialResponse) => {
+        try {
+            const result = await googleLogin(credentialResponse.credential);
+            if (result.success) {
+                navigate('/dashboard');
+            } else {
+                setError(result.error || 'Google sign-in failed. Please try again.');
+            }
+        } catch (err) {
+            setError('Google sign-in failed. Please try again.');
         }
     };
 
@@ -95,6 +110,25 @@ const Login = () => {
                     {!isLoading && <ArrowRight className="ml-2 w-4 h-4 group-hover:translate-x-1 transition-transform" />}
                 </Button>
             </form>
+
+            <div className="relative my-8">
+                <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-slate-200"></div>
+                </div>
+                <div className="relative flex justify-center text-sm">
+                    <span className="px-2 bg-white text-slate-500">Or continue with</span>
+                </div>
+            </div>
+
+            <div className="flex justify-center">
+                <GoogleLogin
+                    onSuccess={handleGoogleSuccess}
+                    onError={() => setError('Google sign-in was unsuccessful')}
+                    useOneTap
+                    theme="outline"
+                    width="100%"
+                />
+            </div>
 
             <div className="mt-8 text-center text-sm text-slate-500">
                 Don't have an account yet?{' '}

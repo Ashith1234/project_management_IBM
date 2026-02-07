@@ -2,6 +2,9 @@ const asyncHandler = require('express-async-handler');
 const User = require('../models/User');
 const Organization = require('../models/Organization');
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
 // @desc      Register user
 // @route     POST /api/auth/register
@@ -75,6 +78,46 @@ exports.login = asyncHandler(async (req, res) => {
     sendTokenResponse(user, 200, res);
 });
 
+// @desc      Google login
+// @route     POST /api/auth/google
+// @access    Public
+exports.googleLogin = asyncHandler(async (req, res) => {
+    const { credential } = req.body;
+
+    if (!credential) {
+        res.status(400);
+        throw new Error('Google credential is required');
+    }
+
+    const ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID
+    });
+
+    const { name, email, picture, sub } = ticket.getPayload();
+
+    let user = await User.findOne({ email });
+
+    if (!user) {
+        // Create user if doesn't exist
+        user = await User.create({
+            name,
+            email,
+            avatar: picture,
+            password: Math.random().toString(36).slice(-10) + Math.random().toString(36).slice(-10), // Random password
+            role: 'member'
+        });
+    } else {
+        // Update avatar if changed
+        if (picture && user.avatar !== picture) {
+            user.avatar = picture;
+            await user.save();
+        }
+    }
+
+    sendTokenResponse(user, 200, res);
+});
+
 // @desc      Get current logged in user
 // @route     GET /api/auth/me
 // @access    Private
@@ -116,7 +159,9 @@ const sendTokenResponse = (user, statusCode, res) => {
                 name: user.name,
                 email: user.email,
                 role: user.role,
-                organization: user.organization
+                organization: user.organization,
+                avatar: user.avatar
             }
         });
 };
+

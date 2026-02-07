@@ -12,6 +12,8 @@ exports.getTasks = asyncHandler(async (req, res) => {
 
     if (req.params.projectId) {
         query = Task.find({ project: req.params.projectId });
+    } else if (req.query.project) {
+        query = Task.find({ project: req.query.project });
     } else {
         // If getting all tasks, filter by user assignment or ownership
         // For simplicity, just get all task for now (in real app, filter for user)

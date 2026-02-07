@@ -1,5 +1,5 @@
 const express = require('express');
-const { getFiles, uploadFile, deleteFile } = require('../controllers/file.controller');
+const { getFiles, uploadFile, deleteFile, uploadMiddleware } = require('../controllers/file.controller');
 const { protect } = require('../middleware/auth.middleware');
 
 const router = express.Router();
@@ -8,7 +8,7 @@ router.use(protect);
 
 router.route('/')
     .get(getFiles)
-    .post(uploadFile);
+    .post(uploadMiddleware, uploadFile);
 
 router.route('/:id')
     .delete(deleteFile);

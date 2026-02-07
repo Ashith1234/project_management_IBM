@@ -9,25 +9,46 @@ import { Users, Briefcase, CheckCircle, Activity, Calendar, Plus } from 'lucide-
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Button } from '@/components/ui/Button';
 import { useNavigate } from 'react-router-dom';
+import ProjectProgressChart from '@/components/analytics/ProjectProgressChart';
+import TaskCompletionChart from '@/components/analytics/TaskCompletionChart';
+import TimeUtilizationChart from '@/components/analytics/TimeUtilizationChart';
+import OverdueTaskChart from '@/components/analytics/OverdueTaskChart';
+import { getProjectProgress, getTaskCompletionStats, getTimeUtilization, getOverdueStats } from '@/api/analytics';
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchStats = async () => {
+    const [projectProgress, setProjectProgress] = useState([]);
+    const [taskStats, setTaskStats] = useState({});
+    const [timeStats, setTimeStats] = useState([]);
+    const [overdueStats, setOverdueStats] = useState({});
+
+    const fetchAllData = async () => {
         try {
-            const res = await axios.get('/api/dashboard/admin');
-            setStats(res.data.data);
+            const [adminStats, projProg, tasks, time, overdue] = await Promise.all([
+                axios.get('/api/dashboard/admin'),
+                getProjectProgress(),
+                getTaskCompletionStats(),
+                getTimeUtilization(),
+                getOverdueStats()
+            ]);
+
+            setStats(adminStats.data.data);
+            setProjectProgress(projProg.data);
+            setTaskStats(tasks.data);
+            setTimeStats(time.data);
+            setOverdueStats(overdue.data);
         } catch (error) {
-            console.error("Error fetching admin stats", error);
+            console.error("Error fetching admin dashboard data", error);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchStats();
+        fetchAllData();
     }, []);
 
     if (loading) return (
@@ -108,6 +129,13 @@ const AdminDashboard = () => {
                         <p className="text-xs text-slate-500 mt-1 font-medium">Critical overdue tasks</p>
                     </CardContent>
                 </Card>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+                <ProjectProgressChart data={projectProgress} />
+                <TaskCompletionChart data={taskStats} />
+                <TimeUtilizationChart data={timeStats} />
+                <OverdueTaskChart data={overdueStats} />
             </div>
 
             <div className="grid gap-6 md:grid-cols-7">

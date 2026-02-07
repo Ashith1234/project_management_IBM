@@ -4,6 +4,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const morgan = require('morgan');
 const dotenv = require('dotenv');
+const path = require('path');
 const { createServer } = require('http');
 const { Server } = require('socket.io');
 const connectDB = require('./config/database');
@@ -30,8 +31,13 @@ app.use(cors({
     origin: process.env.CLIENT_URL || "http://localhost:5173",
     credentials: true
 }));
-app.use(helmet());
+app.use(helmet({
+    crossOriginResourcePolicy: false,
+}));
 app.use(morgan('dev'));
+
+// Static folder for file uploads
+app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
 
 // Socket.io connection
 io.on('connection', (socket) => {
@@ -65,6 +71,7 @@ app.use('/api/notifications', require('./routes/notification.routes'));
 app.use('/api/milestones', require('./routes/milestone.routes'));
 app.use('/api/files', require('./routes/file.routes'));
 app.use('/api/discussions', require('./routes/discussion.routes'));
+app.use('/api/analytics', require('./routes/analytics.routes'));
 // app.use('/api/reports', require('./routes/report.routes'));
 
 // Error Handling Middleware

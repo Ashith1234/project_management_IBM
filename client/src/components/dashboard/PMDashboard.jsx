@@ -8,25 +8,46 @@ import { AlertTriangle, Calendar, Layers, Activity, Plus, Clock, CheckCircle } f
 import { Skeleton } from '@/components/ui/Skeleton';
 import { Button } from '@/components/ui/Button';
 import { useNavigate } from 'react-router-dom';
+import ProjectProgressChart from '@/components/analytics/ProjectProgressChart';
+import TaskCompletionChart from '@/components/analytics/TaskCompletionChart';
+import TimeUtilizationChart from '@/components/analytics/TimeUtilizationChart';
+import OverdueTaskChart from '@/components/analytics/OverdueTaskChart';
+import { getProjectProgress, getTaskCompletionStats, getTimeUtilization, getOverdueStats } from '@/api/analytics';
 
 const PMDashboard = () => {
     const navigate = useNavigate();
     const [stats, setStats] = useState(null);
     const [loading, setLoading] = useState(true);
 
-    const fetchStats = async () => {
+    const [projectProgress, setProjectProgress] = useState([]);
+    const [taskStats, setTaskStats] = useState({});
+    const [timeStats, setTimeStats] = useState([]);
+    const [overdueStats, setOverdueStats] = useState({});
+
+    const fetchAllData = async () => {
         try {
-            const res = await axios.get('/api/dashboard/pm');
-            setStats(res.data.data);
+            const [pmStats, projProg, tasks, time, overdue] = await Promise.all([
+                axios.get('/api/dashboard/pm'),
+                getProjectProgress(),
+                getTaskCompletionStats(),
+                getTimeUtilization(),
+                getOverdueStats()
+            ]);
+
+            setStats(pmStats.data.data);
+            setProjectProgress(projProg.data);
+            setTaskStats(tasks.data);
+            setTimeStats(time.data);
+            setOverdueStats(overdue.data);
         } catch (error) {
-            console.error("Error fetching PM stats", error);
+            console.error("Error fetching dashboard data", error);
         } finally {
             setLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchStats();
+        fetchAllData();
     }, []);
 
     const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
@@ -90,6 +111,13 @@ const PMDashboard = () => {
                         <p className="text-xs font-medium text-emerald-600/80 mt-1 text-nowrap whitespace-nowrap overflow-hidden">Real-time tracking optimized</p>
                     </CardContent>
                 </Card>
+            </div>
+
+            <div className="grid gap-6 md:grid-cols-2">
+                <ProjectProgressChart data={projectProgress} />
+                <TaskCompletionChart data={taskStats} />
+                <TimeUtilizationChart data={timeStats} />
+                <OverdueTaskChart data={overdueStats} />
             </div>
 
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
