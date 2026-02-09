@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
+import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/Button';
 import Badge from '@/components/ui/Badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/Tabs';
 import { Avatar, AvatarFallback } from '@/components/ui/Avatar';
 import {
     Calendar, CheckCircle2, Clock, MessageSquare,
-    Paperclip, Plus, Trash2, Send, ArrowLeft, Layers
+    Paperclip, Plus, Trash2, Send, ArrowLeft, Layers, UserCircle2
 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/Skeleton';
 
 const TaskDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { user } = useAuth();
     const [task, setTask] = useState(null);
     const [loading, setLoading] = useState(true);
     const [isEditing, setIsEditing] = useState(false);
@@ -99,7 +101,7 @@ const TaskDetailPage = () => {
                 $push: {
                     comments: {
                         text: comment,
-                        user: task.reporter._id
+                        user: user._id // Use current user ID
                     }
                 }
             });
@@ -109,6 +111,10 @@ const TaskDetailPage = () => {
             console.error("Error posting comment", error);
         }
     };
+
+    // Determine permissions
+    const canDelete = user?.role === 'admin' || (task?.project?.manager === user?._id || task?.project?.manager?._id === user?._id);
+    const canEdit = canDelete;
 
     if (loading) {
         return (
@@ -140,7 +146,7 @@ const TaskDetailPage = () => {
                     <Badge variant={task.status === 'done' ? 'success' : 'outline'} className="capitalize">
                         {task.status.replace('_', ' ')}
                     </Badge>
-                    {isEditing ? (
+                    {isEditing && canEdit ? (
                         <input
                             className="text-2xl font-bold bg-slate-50 border border-slate-200 rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-indigo-500"
                             value={editData.title}
@@ -154,14 +160,21 @@ const TaskDetailPage = () => {
                     {isEditing ? (
                         <Button size="sm" onClick={handleSave}>Save</Button>
                     ) : (
-                        <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>Edit</Button>
+                        canEdit && <Button variant="outline" size="sm" onClick={() => setIsEditing(true)}>Edit</Button>
                     )}
-                    <Button variant="outline" size="sm" onClick={() => handleUpdateStatus(task.status === 'done' ? 'todo' : 'done')}>
-                        {task.status === 'done' ? 'Reopen' : 'Mark as Done'}
+                    <Button
+                        variant={task.status === 'done' ? 'outline' : 'default'}
+                        size="sm"
+                        className={task.status !== 'done' ? 'bg-indigo-600 hover:bg-indigo-700 text-white' : ''}
+                        onClick={() => handleUpdateStatus(task.status === 'done' ? 'in_progress' : 'done')}
+                    >
+                        {task.status === 'done' ? 'Reopen' : 'Work Done'}
                     </Button>
-                    <Button variant="ghost" size="sm" className="text-rose-500 hover:text-rose-600 hover:bg-rose-50" onClick={handleDelete}>
-                        <Trash2 className="w-4 h-4" />
-                    </Button>
+                    {canDelete && (
+                        <Button variant="ghost" size="sm" className="text-rose-500 hover:text-rose-600 hover:bg-rose-50" onClick={handleDelete}>
+                            <Trash2 className="w-4 h-4" />
+                        </Button>
+                    )}
                 </div>
             </div>
 
@@ -170,7 +183,7 @@ const TaskDetailPage = () => {
                 <div className="col-span-2 bg-white rounded-2xl shadow-sm border border-slate-200 p-6 space-y-6">
                     <div className="space-y-3">
                         <h4 className="text-xs font-bold text-slate-400 uppercase tracking-widest">Description</h4>
-                        {isEditing ? (
+                        {isEditing && canEdit ? (
                             <textarea
                                 className="w-full bg-slate-50 border border-slate-200 rounded-lg p-3 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 min-h-[100px]"
                                 value={editData.description}
@@ -297,6 +310,14 @@ const TaskDetailPage = () => {
                         </div>
 
                         <div className="space-y-1">
+                            <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Assigned By</label>
+                            <div className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+                                <UserCircle2 className="w-4 h-4 text-indigo-500" />
+                                {task.reporter?.name || 'Unknown'}
+                            </div>
+                        </div>
+
+                        <div className="space-y-1">
                             <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Assignees</label>
                             <div className="flex flex-wrap gap-2 pt-1">
                                 {task.assignees?.map(a => (
@@ -313,7 +334,7 @@ const TaskDetailPage = () => {
                         <div className="space-y-1">
                             <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Priority</label>
                             <div className="pt-1">
-                                {isEditing ? (
+                                {isEditing && canEdit ? (
                                     <select
                                         className="w-full bg-slate-50 border border-slate-200 rounded px-2 py-1 text-xs focus:ring-2 focus:ring-indigo-500"
                                         value={editData.priority}
@@ -336,12 +357,13 @@ const TaskDetailPage = () => {
                             <label className="text-[10px] font-bold uppercase text-slate-400 tracking-wider">Due Date</label>
                             <div className="flex items-center gap-2 pt-1 text-sm font-semibold text-slate-700">
                                 <Calendar className="w-4 h-4 text-slate-400" />
-                                {isEditing ? (
+                                {isEditing && canEdit ? (
                                     <input
                                         type="date"
                                         className="bg-slate-50 border border-slate-200 rounded px-2 py-0.5 text-xs focus:ring-2 focus:ring-indigo-500"
                                         value={editData.dueDate}
                                         onChange={(e) => setEditData({ ...editData, dueDate: e.target.value })}
+                                        onClick={(e) => e.target.showPicker?.()}
                                     />
                                 ) : (
                                     <span>{task.dueDate ? new Date(task.dueDate).toLocaleDateString() : "No due date"}</span>

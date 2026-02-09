@@ -55,6 +55,7 @@ const CreateMilestoneModal = ({ isOpen, onClose, onCreated, projectId }) => {
                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                                 value={formData.dueDate}
                                 onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                                onClick={(e) => e.target.showPicker?.()}
                             />
                         </div>
                         <div className="space-y-1.5">

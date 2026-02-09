@@ -81,11 +81,22 @@ exports.updateMilestone = asyncHandler(async (req, res) => {
 // @route   DELETE /api/milestones/:id
 // @access  Private (PM, Admin)
 exports.deleteMilestone = asyncHandler(async (req, res) => {
-    const milestone = await Milestone.findById(req.params.id);
+    const milestone = await Milestone.findById(req.params.id).populate('project');
 
     if (!milestone) {
         res.status(404);
         throw new Error('Milestone not found');
+    }
+
+    // Check permissions
+    // Admin can delete any milestone
+    // Project Manager can delete milestones in their own project
+    const isProjectManager = milestone.project && milestone.project.manager.toString() === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isAdmin && !isProjectManager) {
+        res.status(403);
+        throw new Error('Not authorized to delete this milestone');
     }
 
     await milestone.deleteOne();

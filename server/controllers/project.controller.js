@@ -134,10 +134,10 @@ exports.deleteProject = asyncHandler(async (req, res) => {
         throw new Error(`Project not found with id of ${req.params.id}`);
     }
 
-    // Make sure user is project owner or admin
-    if (project.manager.toString() !== req.user.id && req.user.role !== 'admin') {
+    // Make sure user is admin (PMs cannot delete projects)
+    if (req.user.role !== 'admin') {
         res.status(403);
-        throw new Error(`User ${req.user.id} is not authorized to delete this project`);
+        throw new Error(`User ${req.user.id} is not authorized to delete this project. Only admins can delete projects.`);
     }
 
     await project.deleteOne(); // Trigger pre-remove hooks if any

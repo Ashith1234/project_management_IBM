@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import {
     Dialog, DialogContent, DialogHeader, DialogTitle,
@@ -25,6 +25,10 @@ const CreateTaskModal = ({ isOpen, onClose, onCreated, initialProjectId = '' }) 
     const [users, setUsers] = useState([]);
     const [loading, setLoading] = useState(false);
 
+    const [attachments, setAttachments] = useState([]);
+    const fileInputRef = useRef(null);
+    const [uploading, setUploading] = useState(false);
+
     useEffect(() => {
         if (isOpen) {
             Promise.all([
@@ -38,6 +42,8 @@ const CreateTaskModal = ({ isOpen, onClose, onCreated, initialProjectId = '' }) 
                 setProjects([]);
                 setUsers([]);
             });
+            // Reset attachments when modal opens
+            setAttachments([]);
         }
     }, [isOpen]);
 
@@ -50,14 +56,71 @@ const CreateTaskModal = ({ isOpen, onClose, onCreated, initialProjectId = '' }) 
         }));
     };
 
+    const handleFileClick = () => {
+        if (!formData.project) {
+            alert("Please select a project first before uploading files.");
+            return;
+        }
+        fileInputRef.current.click();
+    };
+
+    const handleFileChange = async (e) => {
+        const files = Array.from(e.target.files);
+        if (files.length === 0) return;
+
+        setUploading(true);
+        const newAttachments = [];
+
+        try {
+            // Upload each file individually
+            for (const file of files) {
+                const uploadData = new FormData();
+                uploadData.append('file', file);
+                uploadData.append('project', formData.project);
+
+                const res = await axios.post('/api/files', uploadData, {
+                    headers: { 'Content-Type': 'multipart/form-data' }
+                });
+
+                if (res.data && res.data.data) {
+                    newAttachments.push({
+                        name: res.data.data.name,
+                        url: res.data.data.url,
+                        fileType: res.data.data.type
+                    });
+                }
+            }
+
+            setAttachments(prev => [...prev, ...newAttachments]);
+        } catch (error) {
+            console.error("Upload error:", error);
+            alert("Failed to upload files. Please try again.");
+        } finally {
+            setUploading(false);
+            // Reset input so same file can be selected again if needed
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
+    };
+
+    const removeAttachment = (index) => {
+        setAttachments(prev => prev.filter((_, i) => i !== index));
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setLoading(true);
         try {
-            await axios.post('/api/tasks', formData);
+            // Prepare task data with attachments
+            const taskData = {
+                ...formData,
+                attachments: attachments
+            };
+
+            await axios.post('/api/tasks', taskData);
             onCreated();
             onClose();
             setFormData({ title: '', description: '', project: initialProjectId || '', priority: 'medium', dueDate: '', assignees: [] });
+            setAttachments([]);
         } catch (error) {
             alert(error.response?.data?.message || "Failed to create task");
         } finally {
@@ -103,6 +166,7 @@ const CreateTaskModal = ({ isOpen, onClose, onCreated, initialProjectId = '' }) 
                                 className="w-full bg-slate-50 border border-slate-200 rounded-xl p-2.5 text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
                                 value={formData.dueDate}
                                 onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                                onClick={(e) => e.target.showPicker?.()}
                             />
                         </div>
                     </div>
@@ -157,17 +221,47 @@ const CreateTaskModal = ({ isOpen, onClose, onCreated, initialProjectId = '' }) 
 
                     <div className="space-y-1.5">
                         <label className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Attach Files</label>
-                        <div className="border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-indigo-300 transition-colors cursor-pointer bg-slate-50/50">
-                            <p className="text-xs text-slate-500 font-medium">Click to upload or drag and drop</p>
+                        <input
+                            type="file"
+                            multiple
+                            ref={fileInputRef}
+                            className="hidden"
+                            onChange={handleFileChange}
+                        />
+                        <div
+                            onClick={handleFileClick}
+                            className={`border-2 border-dashed border-slate-200 rounded-xl p-6 text-center hover:border-indigo-300 transition-colors cursor-pointer bg-slate-50/50 ${uploading ? 'opacity-50 pointer-events-none' : ''}`}
+                        >
+                            <p className="text-xs text-slate-500 font-medium">
+                                {uploading ? 'Uploading...' : 'Click to upload or drag and drop'}
+                            </p>
                             <p className="text-[10px] text-slate-400 mt-1">Maximum file size 10MB</p>
                         </div>
+
+                        {/* File List */}
+                        {attachments.length > 0 && (
+                            <div className="space-y-2 mt-2">
+                                {attachments.map((file, index) => (
+                                    <div key={index} className="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-200 text-xs">
+                                        <span className="truncate max-w-[200px] text-slate-700">{file.name}</span>
+                                        <button
+                                            type="button"
+                                            onClick={() => removeAttachment(index)}
+                                            className="text-red-500 hover:text-red-700 font-medium"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
                     </div>
 
                     <div className="flex justify-end gap-3 pt-4">
                         <Button type="button" variant="ghost" onClick={onClose} className="font-bold text-slate-500 hover:bg-transparent">Cancel</Button>
                         <Button
                             type="submit"
-                            disabled={loading}
+                            disabled={loading || uploading}
                             className="bg-indigo-600 hover:bg-indigo-700 text-white font-bold px-8 rounded-xl"
                         >
                             {loading ? 'Creating...' : 'Create Task'}

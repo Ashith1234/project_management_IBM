@@ -38,7 +38,8 @@ exports.getTask = asyncHandler(async (req, res) => {
     const task = await Task.findById(req.params.id)
         .populate('project')
         .populate('assignees', 'name avatar')
-        .populate('comments.user', 'name avatar');
+        .populate('comments.user', 'name avatar')
+        .populate('reporter', 'name avatar');
 
     if (!task) {
         res.status(404);
@@ -101,11 +102,31 @@ exports.createTask = asyncHandler(async (req, res) => {
 // @route   PUT /api/tasks/:id
 // @access  Private
 exports.updateTask = asyncHandler(async (req, res) => {
-    let task = await Task.findById(req.params.id);
+    let task = await Task.findById(req.params.id).populate('project');
 
     if (!task) {
         res.status(404);
         throw new Error('Task not found');
+    }
+
+    // Check permissions
+    const isProjectManager = task.project && task.project.manager.toString() === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+    const isMember = !isAdmin && !isProjectManager;
+
+    if (isMember) {
+        // Members can ONLY update status (and comments, handled separately by $push)
+        // If they try to update anything else in the main body, block it
+        const allowedUpdates = ['status', '$push', '$pull']; // $push/$pull for comments/subtasks if strict
+        const attemptedUpdates = Object.keys(req.body);
+
+        // Filter out allowed fields
+        const unauthorizedUpdates = attemptedUpdates.filter(field => !allowedUpdates.includes(field));
+
+        if (unauthorizedUpdates.length > 0) {
+            res.status(403);
+            throw new Error('Not authorized to edit task details. You can only update the status.');
+        }
     }
 
     // Capture changes for history
@@ -213,11 +234,22 @@ exports.updateTask = asyncHandler(async (req, res) => {
 // @route   DELETE /api/tasks/:id
 // @access  Private
 exports.deleteTask = asyncHandler(async (req, res) => {
-    const task = await Task.findById(req.params.id);
+    const task = await Task.findById(req.params.id).populate('project');
 
     if (!task) {
         res.status(404);
         throw new Error('Task not found');
+    }
+
+    // Check permissions
+    // Admin can delete any task
+    // Project Manager can delete tasks in their own project
+    const isProjectManager = task.project && task.project.manager.toString() === req.user.id;
+    const isAdmin = req.user.role === 'admin';
+
+    if (!isAdmin && !isProjectManager) {
+        res.status(403);
+        throw new Error('Not authorized to delete this task');
     }
 
     await task.deleteOne();
